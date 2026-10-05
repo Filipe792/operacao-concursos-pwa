@@ -61,17 +61,21 @@ function App() {
   }, [])
 
   function adicionarFotos(evento) {
-    const arquivo =
-      evento.target.files?.[0]
+    const arquivo = evento.target.files?.[0]
 
     if (!arquivo) return
 
-    const url =
-      URL.createObjectURL(arquivo)
+    const url = URL.createObjectURL(arquivo)
 
     setImagemOriginal(url)
-
     setImagemParaRecorte(url)
+
+    setCrop({
+      x: 0,
+      y: 0
+    })
+
+    setZoom(1)
   }
 
   async function processarFotos() {
@@ -361,6 +365,75 @@ function App() {
     )
   }
 
+  if (imagemParaRecorte && !modoDivisao) {
+    return (
+      <div
+        style={{
+          padding: 20,
+          textAlign: 'center'
+        }}
+      >
+        <h2>✂️ Recorte a etiqueta</h2>
+
+        <div
+          style={{
+            position: 'relative',
+            width: '100%',
+            maxWidth: 800,
+            height: 500,
+            margin: '0 auto',
+            background: '#222'
+          }}
+        >
+          <Cropper
+            image={imagemParaRecorte}
+            crop={crop}
+            zoom={zoom}
+            aspect={4 / 3}
+            onCropChange={setCrop}
+            onCropComplete={onCropComplete}
+            onZoomChange={setZoom}
+          />
+        </div>
+
+        <br />
+
+        <p>🔍 Zoom</p>
+
+        <input
+          type="range"
+          min={1}
+          max={3}
+          step={0.1}
+          value={zoom}
+          onChange={e =>
+            setZoom(Number(e.target.value))
+          }
+        />
+
+        <br /><br />
+
+        <button
+          onClick={salvarRecorte}
+        >
+          ✂️ Confirmar Recorte
+        </button>
+      
+        <button
+          onClick={() => {
+            setImagemParaRecorte(null)
+            setImagemOriginal(null)
+          }}
+          style={{
+            marginLeft: 10
+          }}
+        >
+          ❌ Cancelar
+        </button>
+      </div>
+    )
+  }
+
   if (
     modoDivisao &&
     imagemRecortada
@@ -449,11 +522,11 @@ function App() {
 
         <input
           type="range"
-          min={div2 + 5}
-          max="98"
-          value={div3}
+          min={div1 + 5}
+          max={div3 - 5}
+          value={div2}
           onChange={e =>
-            setDiv3(Number(e.target.value))
+            setDiv2(Number(e.target.value))
           }
         />
 
@@ -461,13 +534,11 @@ function App() {
 
         <input
           type="range"
-          min="15"
+          min={div2 + 5}
           max="98"
           value={div3}
           onChange={e =>
-            setDiv3(
-              Number(e.target.value)
-            )
+            setDiv3(Number(e.target.value))
           }
         />
 
