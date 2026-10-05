@@ -1,3 +1,7 @@
+import {
+  encontrarCidadeMaisProxima
+} from './cidadesMG'
+
 export function processarTextoOCR(texto) {
   const resultados = []
 
@@ -7,10 +11,15 @@ export function processarTextoOCR(texto) {
   let match
 
   while ((match = regex.exec(texto)) !== null) {
+    const cidadeOriginal = match[1]
+      .trim()
+      .replace(/\s+/g, ' ')
+
     resultados.push({
-      cidade: match[1]
-        .trim()
-        .replace(/\s+/g, ' '),
+      cidade:
+        encontrarCidadeMaisProxima(
+          cidadeOriginal
+        ),
 
       quantidade: Number(match[2])
     })

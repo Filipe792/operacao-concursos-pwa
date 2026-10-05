@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import Tesseract from 'tesseract.js'
 import { processarTextoOCR } from './utils/parserOCR'
 import { saveAs } from 'file-saver'
-
+import Cropper from 'react-easy-crop'
+import getCroppedImg from './utils/cropImage'
 
 function App() {
   const [imagens, setImagens] = useState([])
@@ -14,8 +15,39 @@ function App() {
   const galeriaInputRef = useRef(null)
   const [cidadeManual, setCidadeManual] = useState('')
   const [quantidadeManual, setQuantidadeManual] = useState('')
-
+  const [abaAtual, setAbaAtual] = useState('operacao')
   const [listaPaletes, setListaPaletes] = useState([])
+  const [filtroCidade, setFiltroCidade] =
+    useState('')
+  const [imagemOriginal, setImagemOriginal] =
+    useState(null)
+  const [imagemRecortada, setImagemRecortada] =
+    useState(null)
+
+  const [modoDivisao, setModoDivisao] =
+    useState(false)
+
+  const [div1, setDiv1] = useState(25)
+  const [div2, setDiv2] = useState(50)
+  const [div3, setDiv3] = useState(75)
+  
+  const [crop, setCrop] = useState({
+    x: 0,
+    y: 0
+  })
+
+  const [zoom, setZoom] = useState(1)
+
+  const [imagemParaRecorte,
+    setImagemParaRecorte] =
+    useState(null)
+
+  const [croppedAreaPixels,
+    setCroppedAreaPixels] =
+    useState(null)
+  
+  const [filtroPalete, setFiltroPalete] =
+    useState('')
 
   useEffect(() => {
     const dados = localStorage.getItem('paletes')
@@ -29,16 +61,17 @@ function App() {
   }, [])
 
   function adicionarFotos(evento) {
-    const arquivos = Array.from(evento.target.files)
+    const arquivo =
+      evento.target.files?.[0]
 
-    const urls = arquivos.map(
-      arquivo => URL.createObjectURL(arquivo)
-    )
+    if (!arquivo) return
 
-    setImagens(anterior => [
-      ...anterior,
-      ...urls
-    ])
+    const url =
+      URL.createObjectURL(arquivo)
+
+    setImagemOriginal(url)
+
+    setImagemParaRecorte(url)
   }
 
   async function processarFotos() {
@@ -220,10 +253,290 @@ function App() {
     )
   }
 
+  async function salvarRecorte() {
+    try {
+      const imagemCortada =
+        await getCroppedImg(
+          imagemParaRecorte,
+          croppedAreaPixels
+        )
+
+      setImagemRecortada(
+        imagemCortada
+      )
+
+      setModoDivisao(true)
+
+      setImagemParaRecorte(null)
+
+      setCrop({
+        x: 0,
+        y: 0
+      })
+
+      setZoom(1)
+
+    } catch (erro) {
+      console.error(erro)
+    }
+  }
+  async function confirmarDivisoes() {
+    const image = new Image()
+
+    image.src = imagemRecortada
+
+    image.onload = async () => {
+      const largura = image.width
+      const altura = image.height
+
+      const cortes = [
+        0,
+        largura * (div1 / 100),
+        largura * (div2 / 100),
+        largura * (div3 / 100),
+        largura
+      ]
+
+      const novasImagens = []
+
+      for (let i = 0; i < 4; i++) {
+        const canvas =
+          document.createElement('canvas')
+
+        const ctx =
+          canvas.getContext('2d')
+
+        const larguraColuna =
+          Math.floor(
+            cortes[i + 1] - cortes[i]
+          )
+
+        canvas.width =
+          larguraColuna
+
+        canvas.height =
+          altura
+
+        ctx.drawImage(
+          image,
+          Math.floor(cortes[i]),
+          0,
+          larguraColuna,
+          altura,
+          0,
+          0,
+          larguraColuna,
+          altura
+        )
+
+        const blob =
+          await new Promise(
+            resolve =>
+              canvas.toBlob(
+                resolve,
+                'image/jpeg',
+                0.95
+              )
+          )
+
+        novasImagens.push(
+          URL.createObjectURL(blob)
+        )
+      }
+
+      setImagens(novasImagens)
+
+      setModoDivisao(false)
+
+      setImagemRecortada(null)
+    }
+  }
+
+  const onCropComplete = (
+    croppedArea,
+    croppedAreaPixels
+  ) => {
+    setCroppedAreaPixels(
+      croppedAreaPixels
+    )
+  }
+
+  if (
+    modoDivisao &&
+    imagemRecortada
+  ) {
+    return (
+      <div
+        style={{
+          padding: 20,
+          textAlign: 'center'
+        }}
+      >
+        <h2>
+          📏 Ajuste as colunas
+        </h2>
+
+        <div
+          style={{
+            position: 'relative',
+            display: 'inline-block',
+            maxWidth: '100%'
+          }}
+        >
+          <img
+            src={imagemRecortada}
+            alt="Etiqueta"
+            style={{
+              maxWidth: '100%',
+              display: 'block',
+              border: '2px solid #ccc',
+            }}
+          />
+
+          <div
+            style={{
+              position: 'absolute',
+              left: `${div1}%`,
+              top: 0,
+              bottom: 0,
+              width: 4,
+              background: '#ff0000',
+              boxShadow: '0 0 6px #000'
+            }}
+          />
+
+          <div
+            style={{
+              position: 'absolute',
+              left: `${div2}%`,
+              top: 0,
+              bottom: 0,
+              width: 4,
+              background: '#ff0000',
+              boxShadow: '0 0 6px #000'
+            }}
+          />
+
+          <div
+            style={{
+              position: 'absolute',
+              left: `${div3}%`,
+              top: 0,
+              bottom: 0,
+              width: 4,
+              background: '#ff0000',
+              boxShadow: '0 0 6px #000'
+            }}
+          />
+
+        </div>
+
+        <br /><br />
+
+        <p>Divisão 1</p>
+
+        <input
+          type="range"
+          min="5"
+          max={div2 - 5}
+          value={div1}
+          onChange={e =>
+            setDiv1(Number(e.target.value))
+          }
+        />
+
+        <p>Divisão 2</p>
+
+        <input
+          type="range"
+          min={div2 + 5}
+          max="98"
+          value={div3}
+          onChange={e =>
+            setDiv3(Number(e.target.value))
+          }
+        />
+
+        <p>Divisão 3</p>
+
+        <input
+          type="range"
+          min="15"
+          max="98"
+          value={div3}
+          onChange={e =>
+            setDiv3(
+              Number(e.target.value)
+            )
+          }
+        />
+
+        <br /><br />
+
+        <button
+          onClick={confirmarDivisoes}
+        >
+          ✅ Confirmar Divisões
+        </button>
+
+        <button
+          onClick={() => {
+            setModoDivisao(false)
+
+            setCrop({
+              x: 0,
+              y: 0
+            })
+
+            setZoom(1)
+
+            setImagemRecortada(null)
+
+            setImagemParaRecorte(
+              imagemOriginal
+            )
+          }}
+          style={{
+            marginLeft: 10
+          }}
+        >
+          ↩️ Voltar ao Recorte
+        </button>
+
+        <button
+          onClick={() => {
+            setModoDivisao(false)
+            setImagemRecortada(null)
+            setImagemParaRecorte(null)
+          }}
+          style={{
+            marginLeft: 10
+          }}
+        >
+          ❌ Cancelar
+        </button>
+
+      </div>
+    )
+  }
+
   function limparFotos() {
     setImagens([])
     setTextoOCR('')
     setDestinos([])
+
+    setImagemOriginal(null)
+    setImagemRecortada(null)
+    setImagemParaRecorte(null)
+
+    setModoDivisao(false)
+
+    setCrop({
+      x: 0,
+      y: 0
+    })
+
+    setZoom(1)
   }
 
   return (
@@ -236,16 +549,56 @@ function App() {
       }}
     >
       <h1>Operação Concursos</h1>
+      
+      <div
+        style={{
+          display: 'flex',
+          gap: 10,
+          marginBottom: 20
+        }}
+      >
+        <button
+          onClick={() => setAbaAtual('operacao')}
+          style={{
+            background:
+              abaAtual === 'operacao'
+                ? '#1976d2'
+                : '#ccc',
+            color: 'white',
+            border: 'none',
+            padding: '10px 20px',
+            borderRadius: '5px'
+          }}
+        >
+          📦 Operação
+        </button>
 
-      <h2>
-        Palete Atual:{' '}
-        {String(numeroPalete).padStart(2, '0')}
-      </h2>
+        <button
+          onClick={() => setAbaAtual('consulta')}
+          style={{
+            background:
+              abaAtual === 'consulta'
+                ? '#388e3c'
+                : '#ccc',
+            color: 'white',
+            border: 'none',
+            padding: '10px 20px',
+            borderRadius: '5px'
+          }}
+        >
+          🔍 Consulta
+        </button>
+      </div>
+      {abaAtual === 'operacao' && (
+        <>
+          <h2>
+            Palete Atual:{' '}
+            {String(numeroPalete).padStart(2, '0')}
+          </h2>
 
       <input
         ref={cameraInputRef}
         type="file"
-        multiple
         accept="image/*"
         capture="environment"
         onChange={adicionarFotos}
@@ -288,7 +641,6 @@ function App() {
       <input
         ref={galeriaInputRef}
         type="file"
-        multiple
         accept="image/*"
         onChange={adicionarFotos}
         style={{ display: 'none' }}
@@ -320,10 +672,13 @@ function App() {
 
       <br />
 
-      <button onClick={processarFotos}>
+      <button
+        onClick={processarFotos}
+        disabled={processando}
+      >
         {processando
-          ? 'Processando...'
-          : 'Executar OCR'}
+          ? 'Lendo Etiquetas...'
+          : '📸 Ler Etiquetas'}
       </button>
 
       <button
@@ -341,22 +696,7 @@ function App() {
         🗑 Limpar Fotos
       </button>
 
-      <hr />
-
-      <h3>Texto OCR</h3>
-
-      <textarea
-        value={textoOCR}
-        readOnly
-        rows={6}
-        style={{
-          width: '100%'
-        }}
-      />
-
-      <hr />
-
-      <h3>Destinos OCR</h3>
+      <h3>DESTINOS</h3>
 
       <p>
         <strong>Total de destinos:</strong>{' '}
@@ -525,8 +865,186 @@ function App() {
           </div>
         ))
       )}
+      </>
+    )}
+      {abaAtual === 'consulta' && (
+        <div>
+          <h2>Consulta</h2>
+
+          <input
+            placeholder="Pesquisar cidade"
+            value={filtroCidade}
+            onChange={e =>
+              setFiltroCidade(
+                e.target.value.toUpperCase()
+              )
+            }
+          />
+
+          <input
+            placeholder="Pesquisar palete"
+            value={filtroPalete}
+            onChange={e =>
+              setFiltroPalete(
+                e.target.value
+              )
+            }
+            style={{
+              marginLeft: 10
+            }}
+          />
+
+          <hr />
+
+          <h3>Resumo Geral</h3>
+
+          <p>
+            <strong>Paletes:</strong>{' '}
+            {listaPaletes.length}
+          </p>
+
+          <p>
+            <strong>Destinos:</strong>{' '}
+            {listaPaletes.reduce(
+              (total, palete) =>
+                total + palete.destinos.length,
+              0
+            )}
+          </p>
+
+          <p>
+            <strong>Objetos:</strong>{' '}
+            {listaPaletes.reduce(
+              (total, palete) =>
+                total +
+                palete.destinos.reduce(
+                  (soma, destino) =>
+                    soma + destino.quantidade,
+                  0
+                ),
+              0
+            )}
+          </p>
+
+          <hr />
+
+          {/* CONSULTA POR CIDADE */}
+          {filtroCidade !== '' && (
+            <>
+              <h3>
+                Pesquisa: {filtroCidade}
+              </h3>
+
+              <p>
+                ✅ Encontrado em {
+                  listaPaletes.filter(palete =>
+                    palete.destinos.some(
+                      destino =>
+                        destino.cidade.includes(
+                          filtroCidade
+                        )
+                    )
+                  ).length
+                } paletes
+              </p>
+
+              {listaPaletes
+                .filter(palete =>
+                  palete.destinos.some(
+                    destino =>
+                      destino.cidade.includes(
+                        filtroCidade
+                      )
+                  )
+                )
+                .map(palete => (
+                  <div
+                    key={palete.numero}
+                    style={{
+                      border: '1px solid #ccc',
+                      borderRadius: 8,
+                      padding: 10,
+                      marginBottom: 10
+                    }}
+                  >
+                    <strong>
+                      Palete {palete.numero}
+                    </strong>
+
+                    <hr />
+
+                    {palete.destinos
+                      .filter(destino =>
+                        destino.cidade.includes(
+                          filtroCidade
+                        )
+                      )
+                      .map((destino, index) => (
+                        <div key={index}>
+                          📍 {destino.cidade} - {destino.quantidade}
+                        </div>
+                      ))}
+                  </div>
+                ))}
+            </>
+          )}
+
+          {/* CONSULTA POR PALETE */}
+          {filtroPalete !== '' &&
+            listaPaletes
+              .filter(
+                palete =>
+                  palete.numero ===
+                  filtroPalete.padStart(2, '0')
+              )
+              .map(palete => (
+                <div
+                  key={palete.numero}
+                  style={{
+                    border: '2px solid #1976d2',
+                    borderRadius: 8,
+                    padding: 10,
+                    marginTop: 15
+                  }}
+                >
+                  <h3>
+                    📦 Palete {palete.numero}
+                  </h3>
+
+                  <p>
+                    Total de objetos:{' '}
+                    {palete.destinos.reduce(
+                      (total, destino) =>
+                        total + destino.quantidade,
+                      0
+                    )}
+                  </p>
+
+                  <hr />
+
+                  {palete.destinos.map(
+                    (destino, index) => (
+                      <div key={index}>
+                        📍 {destino.cidade} - {destino.quantidade}
+                      </div>
+                    )
+                  )}
+                </div>
+              ))}
+          {filtroPalete !== '' &&
+            listaPaletes.filter(
+              palete =>
+                palete.numero ===
+                filtroPalete.padStart(2, '0')
+            ).length === 0 && (
+              <p>
+                ❌ Palete não encontrado.
+              </p>
+            )}
+
+        </div>
+      )}
     </div>
   )
 }
-
 export default App
