@@ -392,6 +392,8 @@ function App() {
             onCropChange={setCrop}
             onCropComplete={onCropComplete}
             onZoomChange={setZoom}
+            cropShape="rect"
+            showGrid={true}
           />
         </div>
 
