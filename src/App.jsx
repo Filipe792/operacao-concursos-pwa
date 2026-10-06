@@ -37,6 +37,10 @@ function App() {
   })
 
   const [zoom, setZoom] = useState(1)
+  const [larguraRecorte, setLarguraRecorte] =
+    useState(500)
+  const [alturaRecorte, setAlturaRecorte] =
+    useState(350)
 
   const [imagemParaRecorte,
     setImagemParaRecorte] =
@@ -389,6 +393,9 @@ function App() {
             image={imagemParaRecorte}
             crop={crop}
             zoom={zoom}
+            cropSize={{
+              width: larguraRecorte,
+              height: alturaRecorte}}
             onCropChange={setCrop}
             onCropComplete={onCropComplete}
             onZoomChange={setZoom}
@@ -398,6 +405,38 @@ function App() {
         </div>
 
         <br />
+
+        <p>
+        Largura do recorte
+        </p>
+
+        <input
+          type="range"
+          min="250"
+          max="600"
+          value={larguraRecorte}
+          onChange={e=>
+            setLarguraRecorte(
+              Number(e.target.value)
+            )
+          }
+        />
+
+        <p>
+        Altura do recorte
+        </p>
+
+        <input
+          type="range"
+          min="200"
+          max="500"
+          value={alturaRecorte}
+          onChange={e=>
+            setAlturaRecorte(
+              Number(e.target.value)
+            )
+          }
+        />
 
         <p>🔍 Zoom</p>
 
