@@ -923,7 +923,7 @@ export function encontrarCidadeMaisProxima(
   }
 
   const limite = cidadeOCR.length <=
-    8 ? 2 : 3
+    8 ? 1 : 2
   if (menorDistancia <= limite) {
     return melhorCidade
   }
