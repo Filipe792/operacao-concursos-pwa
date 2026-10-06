@@ -38,9 +38,9 @@ function App() {
 
   const [zoom, setZoom] = useState(1)
   const [larguraRecorte, setLarguraRecorte] =
-    useState(500)
+    useState(300)
   const [alturaRecorte, setAlturaRecorte] =
-    useState(350)
+    useState(200)
 
   const [imagemParaRecorte,
     setImagemParaRecorte] =
@@ -412,7 +412,7 @@ function App() {
 
         <input
           type="range"
-          min="250"
+          min="120"
           max="600"
           value={larguraRecorte}
           onChange={e=>
@@ -428,7 +428,7 @@ function App() {
 
         <input
           type="range"
-          min="200"
+          min="100"
           max="500"
           value={alturaRecorte}
           onChange={e=>
