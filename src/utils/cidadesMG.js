@@ -889,20 +889,31 @@ function distanciaLevenshtein(a, b) {
 export function encontrarCidadeMaisProxima(
   texto
 ) {
-  const cidadeOCR = texto
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toUpperCase()
-    .trim()
-
-  let melhorCidade = cidadeOCR
+  const normalizar = (valor) =>
+    valor
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase()
+      .replace(/\s+/g, ' ')
+      .trim()
+  const cidadeOCR =
+    normalizar(texto)
+  
+  let melhorCidade = null
   let menorDistancia = Infinity
 
   for (const cidade of cidadesMG) {
+    const cidadeNormalizada =
+      normalizar(cidade)
+
+    if (cidadeNormalizada === cidadeOCR) {
+      return cidade
+    }
+
     const distancia =
       distanciaLevenshtein(
         cidadeOCR,
-        cidade
+        cidadeNormalizada
       )
 
     if (distancia < menorDistancia) {
@@ -911,9 +922,11 @@ export function encontrarCidadeMaisProxima(
     }
   }
 
-  if (menorDistancia <= 3) {
+  const limite = cidadeOCR.length <=
+    8 ? 2 : 3
+  if (menorDistancia <= limite) {
     return melhorCidade
   }
 
-  return cidadeOCR
+  return texto.trim()
 }
