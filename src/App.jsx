@@ -4,7 +4,7 @@ import { processarTextoOCR } from './utils/parserOCR'
 import { saveAs } from 'file-saver'
 import Cropper from 'react-easy-crop'
 import getCroppedImg from './utils/cropImage'
-import { supabase } from './services/supabase'
+import { supabase } from './supabase'
 
 function App() {
   const [imagens, setImagens] = useState([])
