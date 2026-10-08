@@ -4,6 +4,7 @@ import { processarTextoOCR } from './utils/parserOCR'
 import { saveAs } from 'file-saver'
 import Cropper from 'react-easy-crop'
 import getCroppedImg from './utils/cropImage'
+import { supabase } from './services/supabase'
 
 function App() {
   const [imagens, setImagens] = useState([])
@@ -54,31 +55,57 @@ function App() {
     useState('')
 
   useEffect(() => {
-    const dados = localStorage.getItem('paletes')
-
-    if (dados) {
-      const lista = JSON.parse(dados)
-
-      setListaPaletes(lista)
-      setNumeroPalete(lista.length + 1)
-    }
+    carregarPaletes()
   }, [])
-
+  
+  async function carregarPaletes() {
+    const { data, error } = await supabase
+      .from('paletes')
+      .select('*')
+      .order('id', { ascending: false })
+  
+    if (error) {
+      console.error(error)
+      alert('Erro ao carregar paletes')
+      return
+    }
+  
+    const lista = data.map(item => ({
+      numero: item.numero,
+      dataHora: item.criado_em,
+      destinos: item.dados || []
+    }))
+  
+    setListaPaletes(lista)
+  
+    const maiorNumero =
+      lista.length > 0
+        ? Math.max(
+            ...lista.map(p =>
+              Number(p.numero)
+            )
+          )
+        : 0
+  
+    setNumeroPalete(maiorNumero + 1)
+  }
+  
   function adicionarFotos(evento) {
     const arquivo = evento.target.files?.[0]
-
+  
     if (!arquivo) return
-
+  
     const url = URL.createObjectURL(arquivo)
-
+  
     setImagemOriginal(url)
     setImagemParaRecorte(url)
-
+    setImagens([url])
+  
     setCrop({
       x: 0,
       y: 0
     })
-
+  
     setZoom(1)
   }
 
@@ -180,85 +207,98 @@ function App() {
     setQuantidadeManual('')
   }
 
-  function salvarPalete() {
+  async function salvarPalete() {
     if (destinos.length === 0) {
       alert('Nenhum destino para salvar')
       return
     }
-
+  
     const novoPalete = {
       numero: String(numeroPalete).padStart(2, '0'),
       dataHora: new Date().toLocaleString(),
       destinos: [...destinos]
     }
-
-    const novaLista = [
-      novoPalete,
-      ...listaPaletes
-    ]
-
-    setListaPaletes(novaLista)
-
-    localStorage.setItem(
-      'paletes',
-      JSON.stringify(novaLista)
-    )
-
+  
+    const { error } = await supabase
+      .from('paletes')
+      .insert({
+        numero: novoPalete.numero,
+        dados: novoPalete.destinos
+      })
+  
+    if (error) {
+      console.error(error)
+      alert('Erro ao salvar no banco')
+      return
+    }
+  
+    await carregarPaletes()
+  
     alert(
       `Palete ${novoPalete.numero} salvo com sucesso!`
     )
-
+  
     setNumeroPalete(
       anterior => anterior + 1
     )
-
+  
     setImagens([])
     setTextoOCR('')
     setDestinos([])
-
     setCidadeManual('')
     setQuantidadeManual('')
   }
 
-  function excluirPalete(numeroPalete) {
+  async function excluirPalete(numeroPalete) {
     const confirmar = window.confirm(
       `Deseja realmente excluir o palete ${numeroPalete}?`
     )
-
+  
     if (!confirmar) return
-
-    const novaLista = listaPaletes.filter(
-      palete => palete.numero !== numeroPalete
-    )
-
-    setListaPaletes(novaLista)
-
-    localStorage.setItem(
-      'paletes',
-      JSON.stringify(novaLista)
+  
+    const { error } = await supabase
+      .from('paletes')
+      .delete()
+      .eq('numero', numeroPalete)
+  
+    if (error) {
+      console.error(error)
+      alert('Erro ao excluir o palete')
+      return
+    }
+  
+    await carregarPaletes()
+  
+    alert(
+      `Palete ${numeroPalete} excluído com sucesso!`
     )
   }
  
-  function excluirDestino(numeroPalete, indexDestino) {
-    const novaLista = listaPaletes.map(palete => {
-      if (palete.numero !== numeroPalete) {
-        return palete
-      }
-
-      return {
-        ...palete,
-        destinos: palete.destinos.filter(
-          (_, index) => index !== indexDestino
-        )
-      }
-    })
-
-    setListaPaletes(novaLista)
-
-    localStorage.setItem(
-      'paletes',
-      JSON.stringify(novaLista)
+  async function excluirDestino(numeroPalete, indexDestino) {
+    const palete = listaPaletes.find(
+      p => p.numero === numeroPalete
     )
+  
+    if (!palete) return
+  
+    const novosDestinos = palete.destinos.filter(
+      (_, index) => index !== indexDestino
+    )
+  
+    const { error } = await supabase
+      .from('paletes')
+      .update({
+        dados: novosDestinos
+      })
+      .eq('numero', numeroPalete)
+  
+    if (error) {
+      console.error(error)
+      alert('Erro ao excluir destino')
+      return
+    }
+  
+    await carregarPaletes()
   }
 
   async function salvarRecorte() {
